@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartReach AI — Intelligent Cold Email Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root { height: 100%; }
+    body { background: #09090b; color: #e8e8f4; overflow: hidden; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .screen-enter { animation: fadeIn 0.25s ease forwards; }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2a2a38; border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3a3a4e; }
+    input, textarea, button { font-family: inherit; }
+    ::placeholder { color: #3a3a50; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+// ─── ui.jsx ───────────────────────────────────────────────────────────────
+const SR_COLORS = {
+  accent: 'oklch(0.62 0.22 258)',
+  accentDim: 'oklch(0.62 0.22 258 / 0.14)',
+  accentBright: 'oklch(0.72 0.22 258)',
+  green: 'oklch(0.68 0.18 155)',
+  greenDim: 'oklch(0.68 0.18 155 / 0.14)',
+  amber: 'oklch(0.75 0.16 75)',
+  amberDim: 'oklch(0.75 0.16 75 / 0.14)',
+  red: 'oklch(0.62 0.2 25)',
+  redDim: 'oklch(0.62 0.2 25 / 0.14)',
+};
+
+function Button({ children, variant = 'primary', size = 'md', onClick, disabled, style, icon }) {
+  const [hov, setHov] = React.useState(false);
+  const base = {
+    display: 'inline-flex', alignItems: 'center', gap: 7,
+    fontFamily: 'Figtree, sans-serif', fontWeight: 500,
+    border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
+    borderRadius: 8, transition: 'all 0.15s ease', outline: 'none',
+    opacity: disabled ? 0.45 : 1, whiteSpace: 'nowrap',
+    ...(size === 'sm' ? { fontSize: 12, padding: '5px 12px' } :
+        size === 'lg' ? { fontSize: 15, padding: '11px 22px' } :
+        { fontSize: 13, padding: '8px 16px' }),
+    ...(variant === 'primary' ? {
+      background: hov ? SR_COLORS.accentBright : SR_COLORS.accent,
+      color: '#fff',
+      boxShadow: hov ? `0 0 20px oklch(0.62 0.22 258 / 0.35)` : 'none',
+    } : variant === 'secondary' ? {
+      background: hov ? '#1e1e26' : '#18181c',
+      color: '#c8c8d8',
+      border: '1px solid #2a2a34',
+    } : variant === 'ghost' ? {
+      background: hov ? '#1a1a22' : 'transparent',
+      color: hov ? '#e0e0f0' : '#888898',
+    } : variant === 'danger' ? {
+      background: hov ? 'oklch(0.62 0.2 25 / 0.2)' : 'oklch(0.62 0.2 25 / 0.12)',
+      color: SR_COLORS.red, border: '1px solid oklch(0.62 0.2 25 / 0.25)',
+    } : {}),
+    ...style,
+  };
+  return (
+    <button style={base} onClick={onClick} disabled={disabled}
+      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}>
+      {icon && <span style={{ display: 'flex', alignItems: 'center' }}>{icon}</span>}
+      {children}
+    </button>
+  );
+}
+
+function Badge({ children, color = 'default', style }) {
+  const colors = {
+    default: { bg: '#1e1e26', text: '#a0a0b4' },
+    accent: { bg: SR_COLORS.accentDim, text: SR_COLORS.accentBright },
+    green: { bg: SR_COLORS.greenDim, text: SR_COLORS.green },
+    amber: { bg: SR_COLORS.amberDim, text: SR_COLORS.amber },
+    red: { bg: SR_COLORS.redDim, text: SR_COLORS.red },
+  };
+  const c = colors[color] || colors.default;
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      padding: '3px 9px', borderRadius: 99,
+      fontSize: 11, fontWeight: 600, letterSpacing: '0.03em',
+      background: c.bg, color: c.text,
+      fontFamily: 'Figtree, sans-serif',
+      ...style,
+    }}>{children}</span>
+  );
+}
+
+function Input({ value, onChange, placeholder, type = 'text', style, icon, label, hint }) {
+  const [focused, setFocused] = React.useState(false);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {label && <label style={{ fontSize: 12, fontWeight: 500, color: '#888898', fontFamily: 'Figtree, sans-serif' }}>{label}</label>}
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+        {icon && <span style={{ position: 'absolute', left: 12, color: '#55556a', display: 'flex' }}>{icon}</span>}
+        <input
+          type={type} value={value} onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+          style={{
+            width: '100%', padding: icon ? '10px 14px 10px 38px' : '10px 14px',
+            background: '#111114', border: `1px solid ${focused ? SR_COLORS.accent : '#232329'}`,
+            borderRadius: 8, color: '#e8e8f4', fontSize: 13,
+            fontFamily: 'Figtree, sans-serif', outline: 'none',
+            transition: 'border-color 0.15s', boxSizing: 'border-box',
+            boxShadow: focused ? `0 0 0 3px oklch(0.62 0.22 258 / 0.12)` : 'none',
+            ...style,
+          }}
+        />
+      </div>
+      {hint && <span style={{ fontSize: 11, color: '#55556a', fontFamily: 'Figtree, sans-serif' }}>{hint}</span>}
+    </div>
+  );
+}
+
+function Textarea({ value, onChange, placeholder, rows = 4, style, label }) {
+  const [focused, setFocused] = React.useState(false);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {label && <label style={{ fontSize: 12, fontWeight: 500, color: '#888898', fontFamily: 'Figtree, sans-serif' }}>{label}</label>}
+      <textarea
+        value={value} onChange={e => onChange(e.target.value)}
+        placeholder={placeholder} rows={rows}
+        onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+        style={{
+          width: '100%', padding: '10px 14px', resize: 'vertical',
+          background: '#111114', border: `1px solid ${focused ? SR_COLORS.accent : '#232329'}`,
+          borderRadius: 8, color: '#e8e8f4', fontSize: 13,
+          fontFamily: 'Figtree, sans-serif', outline: 'none',
+          transition: 'border-color 0.15s', boxSizing: 'border-box',
+          boxShadow: focused ? `0 0 0 3px oklch(0.62 0.22 258 / 0.12)` : 'none',
+          lineHeight: 1.6, ...style,
+        }}
+      />
+    </div>
+  );
+}
+
+function Card({ children, style, onClick, hover = false }) {
+  const [hov, setHov] = React.useState(false);
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+      style={{
+        background: '#111114', border: `1px solid ${hov && hover ? '#2e2e3a' : '#1e1e26'}`,
+        borderRadius: 12, padding: 20,
+        transition: 'border-color 0.15s, box-shadow 0.15s',
+        boxShadow: hov && hover ? '0 4px 24px rgba(0,0,0,0.3)' : 'none',
+        cursor: onClick ? 'pointer' : 'default',
+        ...style,
+      }}
+    >{children}</div>
+  );
+}
+
+function Avatar({ name, size = 32 }) {
+  const initials = name ? name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : '?';
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: '50%',
+      background: SR_COLORS.accentDim, border: `1px solid oklch(0.62 0.22 258 / 0.3)`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      color: SR_COLORS.accentBright, fontSize: size * 0.35, fontWeight: 700,
+      fontFamily: 'Space Grotesk, sans-serif', flexShrink: 0,
+    }}>{initials}</div>
+  );
+}
+
+function Spinner({ size = 20, color }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" style={{ animation: 'spin 0.8s linear infinite' }}>
+      <circle cx="12" cy="12" r="10" fill="none" stroke={color || '#232329'} strokeWidth="2.5" />
+      <path d="M12 2a10 10 0 0 1 10 10" fill="none" stroke={color || SR_COLORS.accent} strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ProgressRing({ value, size = 56, strokeWidth = 5, color }) {
+  const r = (size - strokeWidth * 2) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ * (1 - value / 100);
+  const c = color || SR_COLORS.accent;
+  return (
+    <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#1e1e26" strokeWidth={strokeWidth} />
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={c} strokeWidth={strokeWidth}
+        strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
+        style={{ transition: 'stroke-dashoffset 0.6s ease' }} />
+    </svg>
+  );
+}
+
+function StatCard({ label, value, delta, color }) {
+  const pos = delta && delta.startsWith('+');
+  return (
+    <Card style={{ padding: '18px 20px' }}>
+      <div style={{ fontSize: 11, color: '#666678', fontFamily: 'Figtree, sans-serif', fontWeight: 500, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+      <div style={{ fontSize: 28, fontWeight: 700, color: color || '#f0f0f8', fontFamily: 'Space Grotesk, sans-serif', lineHeight: 1 }}>{value}</div>
+      {delta && <div style={{ fontSize: 11, marginTop: 6, color: pos ? SR_COLORS.green : SR_COLORS.red, fontFamily: 'Figtree, sans-serif', fontWeight: 500 }}>{delta} vs last week</div>}
+    </Card>
+  );
+}
+
+function Tag({ children, onRemove }) {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      background: SR_COLORS.accentDim, color: SR_COLORS.accentBright,
+      padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 500,
+      fontFamily: 'Figtree, sans-serif',
+    }}>
+      {children}
+      {onRemove && <span onClick={onRemove} style={{ cursor: 'pointer', opacity: 0.6, fontSize: 14, lineHeight: 1 }}>×</span>}
+    </span>
+  );
+}
+
+function Divider({ style }) {
+  return <div style={{ height: 1, background: '#1e1e26', ...style }} />;
+}
+
+// ─── screens.jsx ─────────────────────────────────────────────────────────────
+
+const Icon = {
+  Upload: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
+  Link: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>,
+  Copy: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>,
+  Send: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
+  Edit: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+  Star: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="0"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
+  Check: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>,
+  Globe: () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>,
+  Zap: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
+  Mail: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="2 8 12 13 22 8"/></svg>,
+  Plus: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+  Trash: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>,
+  Eye: () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
+  Arrow: ({ dir = 'right' }) => {
+    const r = { right: 0, left: 180, up: -90, down: 90 }[dir] || 0;
+    return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ transform: `rotate(${r}deg)` }}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>;
+  },
+  Briefcase: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="12"/></svg>,
+  BarChart: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
+  Settings: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+};
+
+// ─── ONBOARDING ───────────────────────────────────────────
+function OnboardingScreen({ onComplete }) {
+  const [step, setStep] = React.useState(0);
+  const [resumeFile, setResumeFile] = React.useState(null);
+  const [portfolioLinks, setPortfolioLinks] = React.useState(['']);
+  const [skills, setSkills] = React.useState(['React', 'Node.js', 'Python']);
+  const [newSkill, setNewSkill] = React.useState('');
+  const [name, setName] = React.useState('Alex Johnson');
+  const [role, setRole] = React.useState('Full Stack Engineer');
+  const [dragOver, setDragOver] = React.useState(false);
+
+  const steps = ['Profile', 'Resume & Skills', 'Portfolio'];
+
+  const addSkill = () => {
+    if (newSkill.trim() && !skills.includes(newSkill.trim())) {
+      setSkills([...skills, newSkill.trim()]);
+      setNewSkill('');
+    }
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40, background: '#09090b' }}>
+      <div style={{ width: '100%', maxWidth: 540 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 48 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: SR_COLORS.accent, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </div>
+          <span style={{ fontFamily: 'Space Grotesk, sans-serif', fontWeight: 700, fontSize: 17, color: '#f0f0f8', letterSpacing: '-0.02em' }}>SmartReach AI</span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 36 }}>
+          {steps.map((s, i) => (
+            <React.Fragment key={s}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                <div style={{
+                  width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: i < step ? SR_COLORS.accent : i === step ? SR_COLORS.accentDim : '#1a1a22',
+                  border: `1.5px solid ${i <= step ? SR_COLORS.accent : '#2a2a34'}`,
+                  fontSize: 12, fontWeight: 700, color: i <= step ? (i < step ? '#fff' : SR_COLORS.accentBright) : '#44445a',
+                  fontFamily: 'Space Grotesk, sans-serif', transition: 'all 0.3s',
+                }}>
+                  {i < step ? <Icon.Check /> : i + 1}
+                </div>
+                <span style={{ fontSize: 11, color: i === step ? SR_COLORS.accentBright : '#44445a', fontFamily: 'Figtree, sans-serif', fontWeight: 500, whiteSpace: 'nowrap' }}>{s}</span>
+              </div>
+              {i < steps.length - 1 && <div style={{ flex: 1, height: 1, background: i < step ? SR_COLORS.accent : '#1e1e26', margin: '0 8px', marginBottom: 20, transition: 'background 0.3s' }} />}
+            </React.Fragment>
+          ))}
+        </div>
+
+        <Card style={{ padding: 32 }}>
+          {step === 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+              <div>
+                <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 22, fontWeight: 700, color: '#f0f0f8', marginBottom: 6 }}>Welcome to SmartReach</div>
+                <div style={{ fontSize: 13, color: '#666678', fontFamily: 'Figtree, sans-serif', lineHeight: 1.6 }}>Let's set up your profile so we can personalize every email to your background.</div>
+              </div>
+              <Input label="Full Name" value={name} onChange={setName} placeholder="Your full name" />
+              <Input label="Current Role / Target Role" value={role} onChange={setRole} placeholder="e.g. Full Stack Engineer" />
+              <Input label="Email Address" value="alex@example.com" onChange={() => {}} placeholder="you@company.com" />
+            </div>
+          )}
+
+          {step === 1 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+              <div>
+                <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 22, fontWeight: 700, color: '#f0f0f8', marginBottom: 6 }}>Upload your resume</div>
+                <div style={{ fontSize: 13, color: '#666678', fontFamily: 'Figtree, sans-serif', lineHeight: 1.6 }}>We'll extract your skills and experience to match against job listings.</div>
+              </div>
+              <div
+                onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={e => { e.preventDefault(); setDragOver(false); setResumeFile({ name: e.dataTransfer.files[0]?.name || 'resume.pdf' }); }}
+                onClick={() => setResumeFile({ name: 'Alex_Johnson_Resume.pdf' })}
+                style={{
+                  border: `2px dashed ${dragOver ? SR_COLORS.accent : resumeFile ? SR_COLORS.green : '#2a2a34'}`,
+                  borderRadius: 10, padding: 28, textAlign: 'center', cursor: 'pointer',
+                  background: dragOver ? SR_COLORS.accentDim : resumeFile ? SR_COLORS.greenDim : '#0e0e11',
+                  transition: 'all 0.2s',
+                }}>
+                {resumeFile ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                    <span style={{ color: SR_COLORS.green, display: 'flex' }}><Icon.Check /></span>
+                    <span style={{ color: SR_COLORS.green, fontFamily: 'Figtree, sans-serif', fontWeight: 600, fontSize: 14 }}>{resumeFile.name}</span>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ color: '#44445a', marginBottom: 8, display: 'flex', justifyContent: 'center' }}><Icon.Upload /></div>
+                    <div style={{ fontFamily: 'Figtree, sans-serif', fontSize: 13, color: '#888898' }}>Drop your PDF here, or <span style={{ color: SR_COLORS.accentBright }}>click to upload</span></div>
+                    <div style={{ fontFamily: 'Figtree, sans-serif', fontSize: 11, color: '#44445a', marginTop: 4 }}>PDF, DOCX up to 5MB</div>
+                  </>
+                )}
+              </div>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 500, color: '#888898', fontFamily: 'Figtree, sans-serif', marginBottom: 10 }}>Skills</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                  {skills.map(s => <Tag key={s} onRemove={() => setSkills(skills.filter(x => x !== s))}>{s}</Tag>)}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <Input value={newSkill} onChange={setNewSkill} placeholder="Add a skill…" style={{ flex: 1 }} />
+                  <Button variant="secondary" onClick={addSkill} icon={<Icon.Plus />}>Add</Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+              <div>
+                <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 22, fontWeight: 700, color: '#f0f0f8', marginBottom: 6 }}>Link your portfolio</div>
+                <div style={{ fontSize: 13, color: '#666678', fontFamily: 'Figtree, sans-serif', lineHeight: 1.6 }}>We'll scrape and index your projects to match them against job requirements.</div>
+              </div>
+              {portfolioLinks.map((link, i) => (
+                <Input key={i} value={link} onChange={v => { const n = [...portfolioLinks]; n[i] = v; setPortfolioLinks(n); }}
+                  placeholder="https://github.com/you/project" icon={<Icon.Link />} label={i === 0 ? 'Portfolio Links' : undefined} />
+              ))}
+              <Button variant="ghost" onClick={() => setPortfolioLinks([...portfolioLinks, ''])} icon={<Icon.Plus />} style={{ alignSelf: 'flex-start' }}>Add another link</Button>
+              <div style={{ background: SR_COLORS.accentDim, borderRadius: 8, padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <span style={{ color: SR_COLORS.accentBright, marginTop: 1, flexShrink: 0 }}><Icon.Zap /></span>
+                <span style={{ fontSize: 12, color: '#9090b8', fontFamily: 'Figtree, sans-serif', lineHeight: 1.6 }}>SmartReach will automatically embed your project descriptions into a vector database for intelligent matching.</span>
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 32 }}>
+            {step > 0
+              ? <Button variant="ghost" onClick={() => setStep(step - 1)}>Back</Button>
+              : <div />}
+            <Button onClick={() => step < 2 ? setStep(step + 1) : onComplete()} icon={step === 2 ? <Icon.Zap /> : null}>
+              {step === 2 ? 'Finish Setup' : 'Continue'}
+            </Button>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ─── GENERATE SCREEN ─────────────────────────────────────
+const GENERATE_STEPS = [
+  { id: 'scrape', label: 'Scraping webpage', detail: 'Extracting job description and company data…' },
+  { id: 'parse', label: 'Parsing requirements', detail: 'Identifying skills, responsibilities, and objectives…' },
+  { id: 'match', label: 'Matching portfolio', detail: 'Finding your most relevant projects via vector similarity…' },
+  { id: 'generate', label: 'Generating emails', detail: 'Crafting 3 personalized variations with LLM…' },
+];
+
+const SAMPLE_EMAILS = [
+  {
+    subject: "Full Stack Engineer — Impressed by Stripe's infrastructure scale",
+    body: `Hi Sarah,\n\nI came across Stripe's opening for a Full Stack Engineer and was immediately struck by the distributed systems challenges your team is tackling — particularly around low-latency payment processing at global scale.\n\nIn my recent work at Acme Corp, I built a real-time transaction pipeline in Node.js and React that handled 50K+ events/sec with sub-10ms p99 latency — a problem space that maps closely to what your team is solving.\n\nI'd love to chat about how my experience with distributed event systems could contribute to Stripe's infrastructure ambitions. Would you be open to a 20-minute conversation this week?\n\nBest,\nAlex Johnson`,
+    score: 94, relevance: 96, tone: 91, personalization: 95, clarity: 93,
+  },
+  {
+    subject: "Your Stripe engineering blog post on idempotency keys — a question + opportunity",
+    body: `Hi Sarah,\n\nI read Stripe's recent post on idempotency keys with genuine interest — the edge cases you described around clock skew are something I wrestled with building a distributed payment audit system.\n\nI'm a full-stack engineer with 5+ years building financial infrastructure (React, Node.js, PostgreSQL, Redis). My team's work reduced double-charge incidents by 99.7% using a pattern similar to what your team describes.\n\nGiven Stripe's scale, I suspect you're always looking for engineers who understand these nuances deeply. I'd welcome the chance to explore whether there's a fit.\n\nWarm regards,\nAlex`,
+    score: 88, relevance: 85, tone: 93, personalization: 88, clarity: 87,
+  },
+  {
+    subject: "Re: Stripe Full Stack Engineer — building things that move money reliably",
+    body: `Hi Sarah,\n\nBuilding things that move money reliably is genuinely hard — and Stripe does it better than anyone. That's why I'm reaching out about the Full Stack Engineer role.\n\nA few things I bring:\n• Built payment systems processing $2M+ daily transactions\n• Contributed to open-source financial tooling (1.2k GitHub stars)\n• Deep experience with the React/Node.js stack your team uses\n\nI'm not looking to just apply — I want to understand if there's a real fit. A 15-minute call would tell us both quickly.\n\nAlex Johnson\n+1 (555) 234-5678`,
+    score: 82, relevance: 80, tone: 86, personalization: 79, clarity: 88,
+  },
+];
+
+function GenerateScreen({ onResults }) {
+  const [url, setUrl] = React.useState('');
+  const [company, setCompany] = React.useState('');
+  const [stage, setStage] = React.useState('idle');
+  const [currentStep, setCurrentStep] = React.useState(0);
+  const [completedSteps, setCompletedSteps] = React.useState([]);
+
+  const handleGenerate = () => {
+    if (!url.trim()) return;
+    setStage('loading');
+    setCurrentStep(0);
+    setCompletedSteps([]);
+    const runStep = (i) => {
+      if (i >= GENERATE_STEPS.length) { setTimeout(() => { setStage('done'); onResults(SAMPLE_EMAILS); }, 400); return; }
+      setCurrentStep(i);
+      setTimeout(() => {
+        setCompletedSteps(prev => [...prev, i]);
+        runStep(i + 1);
+      }, 900 + Math.random() * 400);
+    };
+    runStep(0);
+  };
+
+  return (
+    <div style={{ maxWidth: 680, margin: '0 auto', padding: '48px 0' }}>
+      <div style={{ marginBottom: 36 }}>
+        <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 28, fontWeight: 700, color: '#f0f0f8', letterSpacing: '-0.03em', marginBottom: 8 }}>Generate cold email</div>
+        <div style={{ fontSize: 14, color: '#666678', fontFamily: 'Figtree, sans-serif' }}>Paste a job listing or company URL and we'll do the rest.</div>
+      </div>
+
+      <Card style={{ padding: 28, marginBottom: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <Input label="Job listing or company URL" value={url} onChange={setUrl}
+            placeholder="https://stripe.com/jobs/listing/4521834" icon={<Icon.Globe />}
+            hint="We'll scrape the page and extract job details automatically" />
+          <Input label="Hiring manager name (optional)" value={company} onChange={setCompany} placeholder="e.g. Sarah Chen — Engineering Recruiter" />
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button onClick={handleGenerate} disabled={!url.trim() || stage === 'loading'} size="lg"
+              icon={stage === 'loading' ? <Spinner size={16} color="white" /> : <Icon.Zap />}>
+              {stage === 'loading' ? 'Generating…' : 'Analyze & Generate'}
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {stage !== 'idle' && (
+        <Card style={{ padding: 24 }}>
+          <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 13, fontWeight: 600, color: '#888898', marginBottom: 20, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Processing</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {GENERATE_STEPS.map((s, i) => {
+              const done = completedSteps.includes(i);
+              const active = currentStep === i && !done;
+              return (
+                <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 14, opacity: i > currentStep && !done ? 0.35 : 1, transition: 'opacity 0.3s' }}>
+                  <div style={{
+                    width: 28, height: 28, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: done ? SR_COLORS.accentDim : active ? 'transparent' : '#1a1a22',
+                    border: `1.5px solid ${done ? SR_COLORS.accent : active ? SR_COLORS.accent : '#2a2a34'}`,
+                    transition: 'all 0.3s',
+                  }}>
+                    {done ? <span style={{ color: SR_COLORS.accent }}><Icon.Check /></span> : active ? <Spinner size={14} /> : <span style={{ fontSize: 10, color: '#44445a', fontWeight: 700, fontFamily: 'Space Grotesk, sans-serif' }}>{i + 1}</span>}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: done || active ? '#e0e0f0' : '#55556a', fontFamily: 'Space Grotesk, sans-serif', transition: 'color 0.3s' }}>{s.label}</div>
+                    {active && <div style={{ fontSize: 12, color: '#666678', fontFamily: 'Figtree, sans-serif', marginTop: 2 }}>{s.detail}</div>}
+                  </div>
+                  {done && <div style={{ marginLeft: 'auto' }}><Badge color="green">Done</Badge></div>}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ─── RESULTS SCREEN ──────────────────────────────────────
+function ResultsScreen({ emails, onBack }) {
+  const [selected, setSelected] = React.useState(0);
+  const [copied, setCopied] = React.useState(false);
+  const [sent, setSent] = React.useState(false);
+  const email = emails[selected];
+
+  const handleCopy = () => {
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const scoreColor = (v) => v >= 90 ? SR_COLORS.green : v >= 75 ? SR_COLORS.accent : SR_COLORS.amber;
+
+  return (
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
+        <Button variant="ghost" onClick={onBack} icon={<Icon.Arrow dir="left" />}>Back</Button>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 22, fontWeight: 700, color: '#f0f0f8', letterSpacing: '-0.02em' }}>3 emails generated</div>
+          <div style={{ fontSize: 12, color: '#666678', fontFamily: 'Figtree, sans-serif', marginTop: 2 }}>For: Stripe — Full Stack Engineer</div>
+        </div>
+        <Badge color="accent"><Icon.Zap />AI Powered</Badge>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 20, alignItems: 'start' }}>
+        <div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            {emails.map((e, i) => (
+              <button key={i} onClick={() => setSelected(i)} style={{
+                padding: '8px 16px', borderRadius: 8, border: `1px solid ${selected === i ? SR_COLORS.accent : '#232329'}`,
+                background: selected === i ? SR_COLORS.accentDim : 'transparent', cursor: 'pointer',
+                color: selected === i ? SR_COLORS.accentBright : '#666678', fontFamily: 'Space Grotesk, sans-serif',
+                fontWeight: 600, fontSize: 12, transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 6,
+              }}>
+                Variant {i + 1}
+                <span style={{ background: selected === i ? SR_COLORS.accent : '#2a2a34', color: '#fff', borderRadius: 99, padding: '1px 6px', fontSize: 10 }}>{e.score}</span>
+              </button>
+            ))}
+          </div>
+
+          <Card style={{ padding: 0, overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #1e1e26', background: '#0e0e11' }}>
+              <div style={{ fontSize: 11, color: '#44445a', fontFamily: 'Figtree, sans-serif', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Subject</div>
+              <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 14, fontWeight: 600, color: '#e8e8f4' }}>{email.subject}</div>
+            </div>
+            <div style={{ padding: '20px 22px', fontFamily: 'Figtree, sans-serif', fontSize: 13, color: '#c0c0d8', lineHeight: 1.8, whiteSpace: 'pre-wrap', minHeight: 260 }}>
+              {email.body}
+            </div>
+            <div style={{ padding: '14px 20px', borderTop: '1px solid #1e1e26', display: 'flex', gap: 8, background: '#0e0e11' }}>
+              <Button variant="primary" size="sm" onClick={() => setSent(true)} icon={sent ? <Icon.Check /> : <Icon.Send />}>
+                {sent ? 'Sent!' : 'Send Email'}
+              </Button>
+              <Button variant="secondary" size="sm" onClick={handleCopy} icon={copied ? <Icon.Check /> : <Icon.Copy />}>
+                {copied ? 'Copied!' : 'Copy'}
+              </Button>
+              <Button variant="ghost" size="sm" icon={<Icon.Edit />}>Edit</Button>
+            </div>
+          </Card>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <Card style={{ padding: 22 }}>
+            <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 12, fontWeight: 600, color: '#666678', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>AI Score</div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 20 }}>
+              <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                <ProgressRing value={email.score} size={80} strokeWidth={6} color={scoreColor(email.score)} />
+                <div style={{ position: 'absolute', textAlign: 'center' }}>
+                  <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 22, fontWeight: 800, color: scoreColor(email.score) }}>{email.score}</div>
+                </div>
+              </div>
+              <div style={{ fontSize: 12, color: '#666678', fontFamily: 'Figtree, sans-serif', marginTop: 8 }}>
+                {email.score >= 90 ? '🟢 Excellent' : email.score >= 80 ? '🔵 Good' : '🟡 Fair'}
+              </div>
+            </div>
+            {[['Relevance', email.relevance], ['Tone', email.tone], ['Personalization', email.personalization], ['Clarity', email.clarity]].map(([label, val]) => (
+              <div key={label} style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                  <span style={{ fontSize: 12, color: '#888898', fontFamily: 'Figtree, sans-serif' }}>{label}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: scoreColor(val), fontFamily: 'Space Grotesk, sans-serif' }}>{val}</span>
+                </div>
+                <div style={{ height: 4, background: '#1e1e26', borderRadius: 99, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${val}%`, background: scoreColor(val), borderRadius: 99, transition: 'width 0.6s ease' }} />
+                </div>
+              </div>
+            ))}
+          </Card>
+
+          <Card style={{ padding: 18 }}>
+            <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 12, fontWeight: 600, color: '#666678', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>Response Prediction</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 8 }}>
+              <span style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 32, fontWeight: 800, color: SR_COLORS.green }}>34%</span>
+              <span style={{ fontSize: 12, color: '#666678', fontFamily: 'Figtree, sans-serif' }}>reply likelihood</span>
+            </div>
+            <div style={{ fontSize: 11, color: '#55556a', fontFamily: 'Figtree, sans-serif', lineHeight: 1.6 }}>3.4× above industry average of 10%</div>
+          </Card>
+
+          <Card style={{ padding: 18 }}>
+            <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 12, fontWeight: 600, color: '#666678', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>Matched Projects</div>
+            {['Payment Pipeline v2', 'Real-time Audit System'].map(p => (
+              <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: SR_COLORS.accent, flexShrink: 0 }} />
+                <span style={{ fontSize: 12, color: '#a0a0bc', fontFamily: 'Figtree, sans-serif' }}>{p}</span>
+              </div>
+            ))}
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── CAMPAIGNS SCREEN ────────────────────────────────────
+const CAMPAIGNS_DATA = [
+  { id: 1, name: 'Fintech Startups Q2', emails: 24, sent: 18, opened: 12, replied: 4, status: 'active', created: 'Apr 22' },
+  { id: 2, name: 'Series A SaaS Companies', emails: 15, sent: 15, opened: 9, replied: 2, status: 'active', created: 'Apr 18' },
+  { id: 3, name: 'ML Engineer Outreach', emails: 30, sent: 30, opened: 21, replied: 8, status: 'complete', created: 'Apr 10' },
+  { id: 4, name: 'Web3 Infrastructure', emails: 10, sent: 0, opened: 0, replied: 0, status: 'draft', created: 'Apr 28' },
+];
+
+function CampaignsScreen() {
+  const [selected, setSelected] = React.useState(null);
+  const statusColors = { active: 'green', complete: 'accent', draft: 'default' };
+
+  return (
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
+        <div>
+          <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 26, fontWeight: 700, color: '#f0f0f8', letterSpacing: '-0.03em' }}>Campaigns</div>
+          <div style={{ fontSize: 13, color: '#666678', fontFamily: 'Figtree, sans-serif', marginTop: 4 }}>Manage and track your outreach campaigns</div>
+        </div>
+        <Button icon={<Icon.Plus />}>New Campaign</Button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 28 }}>
+        <StatCard label="Total Emails Sent" value="63" delta="+12" />
+        <StatCard label="Avg Open Rate" value="58%" delta="+8%" color={SR_COLORS.green} />
+        <StatCard label="Avg Reply Rate" value="18%" delta="+4%" color={SR_COLORS.accentBright} />
+      </div>
+
+      <Card style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid #1e1e26', display: 'grid', gridTemplateColumns: '2fr 80px 80px 80px 80px 100px 80px', gap: 12, alignItems: 'center' }}>
+          {['Campaign', 'Emails', 'Sent', 'Opened', 'Replied', 'Status', ''].map(h => (
+            <div key={h} style={{ fontSize: 11, fontWeight: 600, color: '#55556a', fontFamily: 'Space Grotesk, sans-serif', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</div>
+          ))}
+        </div>
+        {CAMPAIGNS_DATA.map((c, i) => (
+          <div key={c.id} onClick={() => setSelected(selected === c.id ? null : c.id)}
+            style={{
+              padding: '14px 20px', borderBottom: i < CAMPAIGNS_DATA.length - 1 ? '1px solid #1a1a22' : 'none',
+              display: 'grid', gridTemplateColumns: '2fr 80px 80px 80px 80px 100px 80px', gap: 12, alignItems: 'center',
+              cursor: 'pointer', background: selected === c.id ? '#141418' : 'transparent',
+              transition: 'background 0.15s',
+            }}>
+            <div>
+              <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 13, fontWeight: 600, color: '#e0e0f0' }}>{c.name}</div>
+              <div style={{ fontSize: 11, color: '#44445a', fontFamily: 'Figtree, sans-serif', marginTop: 2 }}>Created {c.created}</div>
+            </div>
+            <div style={{ fontSize: 13, color: '#c0c0d0', fontFamily: 'Space Grotesk, sans-serif', fontWeight: 600 }}>{c.emails}</div>
+            <div style={{ fontSize: 13, color: '#c0c0d0', fontFamily: 'Space Grotesk, sans-serif', fontWeight: 600 }}>{c.sent}</div>
+            <div style={{ fontSize: 13, color: c.opened > 0 ? SR_COLORS.green : '#555568', fontFamily: 'Space Grotesk, sans-serif', fontWeight: 600 }}>{c.opened}</div>
+            <div style={{ fontSize: 13, color: c.replied > 0 ? SR_COLORS.accentBright : '#555568', fontFamily: 'Space Grotesk, sans-serif', fontWeight: 600 }}>{c.replied}</div>
+            <Badge color={statusColors[c.status]}>{c.status}</Badge>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <Button variant="ghost" size="sm" icon={<Icon.Eye />}></Button>
+              <Button variant="ghost" size="sm" icon={<Icon.Trash />}></Button>
+            </div>
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+}
+
+// ─── ANALYTICS SCREEN ────────────────────────────────────
+function AnalyticsScreen() {
+  const bars = [
+    { day: 'Mon', open: 68, reply: 22 }, { day: 'Tue', open: 54, reply: 15 },
+    { day: 'Wed', open: 72, reply: 28 }, { day: 'Thu', open: 61, reply: 19 },
+    { day: 'Fri', open: 80, reply: 35 }, { day: 'Sat', open: 42, reply: 12 },
+    { day: 'Sun', open: 35, reply: 9 },
+  ];
+  const maxVal = 100;
+
+  const recentEmails = [
+    { to: 'sarah@stripe.com', subject: 'Full Stack Engineer — distributed systems', opened: true, replied: true, time: '2h ago' },
+    { to: 'dev@notion.so', subject: 'Frontend Engineer — real-time collaboration', opened: true, replied: false, time: '5h ago' },
+    { to: 'hiring@linear.app', subject: 'Product Engineer — tools for developers', opened: false, replied: false, time: '1d ago' },
+    { to: 'jobs@vercel.com', subject: 'Edge infrastructure + Next.js expertise', opened: true, replied: false, time: '2d ago' },
+  ];
+
+  return (
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 0' }}>
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 26, fontWeight: 700, color: '#f0f0f8', letterSpacing: '-0.03em' }}>Analytics</div>
+        <div style={{ fontSize: 13, color: '#666678', fontFamily: 'Figtree, sans-serif', marginTop: 4 }}>Email performance & tracking</div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+        <StatCard label="Sent this week" value="31" delta="+8" />
+        <StatCard label="Open rate" value="61%" delta="+12%" color={SR_COLORS.green} />
+        <StatCard label="Reply rate" value="23%" delta="+6%" color={SR_COLORS.accentBright} />
+        <StatCard label="Avg AI Score" value="88" delta="+3" color={SR_COLORS.amber} />
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+        <Card style={{ padding: 22 }}>
+          <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 12, fontWeight: 600, color: '#666678', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 20 }}>Weekly Performance</div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, height: 120 }}>
+            {bars.map(b => (
+              <div key={b.day} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, height: '100%', justifyContent: 'flex-end' }}>
+                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, height: '100%', justifyContent: 'flex-end' }}>
+                  <div style={{ width: '100%', background: SR_COLORS.accentDim, borderRadius: '3px 3px 0 0', height: `${(b.open / maxVal) * 100}%`, position: 'relative', minHeight: 4 }}>
+                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: SR_COLORS.accent, borderRadius: '3px 3px 0 0', height: `${(b.reply / b.open) * 100}%` }} />
+                  </div>
+                </div>
+                <div style={{ fontSize: 10, color: '#44445a', fontFamily: 'Space Grotesk, sans-serif' }}>{b.day}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 16, marginTop: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 8, height: 8, borderRadius: 2, background: SR_COLORS.accentDim, border: `1px solid ${SR_COLORS.accent}` }} /><span style={{ fontSize: 11, color: '#55556a', fontFamily: 'Figtree, sans-serif' }}>Opened</span></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 8, height: 8, borderRadius: 2, background: SR_COLORS.accent }} /><span style={{ fontSize: 11, color: '#55556a', fontFamily: 'Figtree, sans-serif' }}>Replied</span></div>
+          </div>
+        </Card>
+
+        <Card style={{ padding: 22 }}>
+          <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 12, fontWeight: 600, color: '#666678', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 20 }}>Email Status Breakdown</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+            <svg width="100" height="100" viewBox="0 0 100 100">
+              {[
+                { pct: 23, color: SR_COLORS.green, offset: 0 },
+                { pct: 38, color: SR_COLORS.accent, offset: 23 },
+                { pct: 39, color: '#1e1e2e', offset: 61 },
+              ].map(({ pct, color, offset }) => {
+                const r = 36, circ = 2 * Math.PI * r;
+                return <circle key={color} cx="50" cy="50" r={r} fill="none" stroke={color} strokeWidth="14"
+                  strokeDasharray={`${(pct / 100) * circ} ${circ}`}
+                  strokeDashoffset={-((offset / 100) * circ)}
+                  style={{ transform: 'rotate(-90deg)', transformOrigin: '50px 50px' }} />;
+              })}
+              <text x="50" y="47" textAnchor="middle" fill="#e0e0f0" fontSize="13" fontWeight="700" fontFamily="Space Grotesk, sans-serif">63</text>
+              <text x="50" y="58" textAnchor="middle" fill="#55556a" fontSize="8" fontFamily="Figtree, sans-serif">emails</text>
+            </svg>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {[['Replied', '23%', SR_COLORS.green], ['Opened', '38%', SR_COLORS.accent], ['Sent', '39%', '#3a3a50']].map(([l, v, c]) => (
+                <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: 2, background: c, flexShrink: 0 }} />
+                  <span style={{ fontSize: 12, color: '#888898', fontFamily: 'Figtree, sans-serif' }}>{l}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700, color: '#c0c0d8', fontFamily: 'Space Grotesk, sans-serif' }}>{v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      <Card style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid #1e1e26' }}>
+          <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 13, fontWeight: 600, color: '#888898' }}>Recent Emails</div>
+        </div>
+        {recentEmails.map((e, i) => (
+          <div key={i} style={{ padding: '13px 20px', borderBottom: i < recentEmails.length - 1 ? '1px solid #1a1a22' : 'none', display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: '#1a1a22', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#55556a', flexShrink: 0 }}><Icon.Mail /></div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 13, fontWeight: 600, color: '#d8d8e8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.subject}</div>
+              <div style={{ fontSize: 11, color: '#44445a', fontFamily: 'Figtree, sans-serif', marginTop: 2 }}>{e.to}</div>
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <Badge color={e.opened ? 'green' : 'default'}>{e.opened ? 'Opened' : 'Sent'}</Badge>
+              {e.replied && <Badge color="accent">Replied</Badge>}
+            </div>
+            <div style={{ fontSize: 11, color: '#44445a', fontFamily: 'Figtree, sans-serif', flexShrink: 0 }}>{e.time}</div>
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+}
+
+// ─── SETTINGS SCREEN ─────────────────────────────────────
+function SettingsScreen() {
+  const [lang, setLang] = React.useState('English');
+  const [tone, setTone] = React.useState('Professional');
+  const [connected, setConnected] = React.useState({ gmail: true, linkedin: false });
+
+  return (
+    <div style={{ maxWidth: 640, margin: '0 auto', padding: '40px 0' }}>
+      <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 26, fontWeight: 700, color: '#f0f0f8', letterSpacing: '-0.03em', marginBottom: 32 }}>Settings</div>
+
+      {[
+        {
+          title: 'Profile', content: (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 4 }}>
+                <Avatar name="Alex Johnson" size={52} />
+                <div>
+                  <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 15, fontWeight: 600, color: '#e0e0f0' }}>Alex Johnson</div>
+                  <div style={{ fontSize: 12, color: '#666678', fontFamily: 'Figtree, sans-serif' }}>alex@example.com</div>
+                </div>
+                <Button variant="secondary" size="sm" style={{ marginLeft: 'auto' }}>Edit</Button>
+              </div>
+              <Divider />
+              <Input label="Full Name" value="Alex Johnson" onChange={() => {}} />
+              <Input label="Email" value="alex@example.com" onChange={() => {}} />
+              <Input label="Job Title" value="Full Stack Engineer" onChange={() => {}} />
+            </div>
+          )
+        },
+        {
+          title: 'Email Integration', content: (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {[
+                { id: 'gmail', name: 'Gmail', desc: 'Send via your Gmail account' },
+                { id: 'linkedin', name: 'LinkedIn', desc: 'Extract profile & company data' },
+              ].map(p => (
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 8, background: '#0e0e11', border: '1px solid #1e1e26' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 8, background: '#1a1a22', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <span style={{ fontSize: 16 }}>{p.id === 'gmail' ? '✉' : '🔗'}</span>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#e0e0f0', fontFamily: 'Space Grotesk, sans-serif' }}>{p.name}</div>
+                    <div style={{ fontSize: 11, color: '#666678', fontFamily: 'Figtree, sans-serif' }}>{p.desc}</div>
+                  </div>
+                  {connected[p.id]
+                    ? <Badge color="green"><Icon.Check /> Connected</Badge>
+                    : <Button variant="secondary" size="sm" onClick={() => setConnected({ ...connected, [p.id]: true })}>Connect</Button>}
+                </div>
+              ))}
+            </div>
+          )
+        },
+        {
+          title: 'AI Preferences', content: (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 500, color: '#888898', fontFamily: 'Figtree, sans-serif', marginBottom: 8 }}>Default email tone</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {['Professional', 'Friendly', 'Concise'].map(t => (
+                    <button key={t} onClick={() => setTone(t)} style={{
+                      padding: '7px 14px', borderRadius: 7, border: `1px solid ${tone === t ? SR_COLORS.accent : '#232329'}`,
+                      background: tone === t ? SR_COLORS.accentDim : 'transparent', color: tone === t ? SR_COLORS.accentBright : '#666678',
+                      fontSize: 12, fontFamily: 'Figtree, sans-serif', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s',
+                    }}>{t}</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 500, color: '#888898', fontFamily: 'Figtree, sans-serif', marginBottom: 8 }}>Output language</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {['English', 'Spanish', 'French', 'German', 'Japanese'].map(l => (
+                    <button key={l} onClick={() => setLang(l)} style={{
+                      padding: '6px 12px', borderRadius: 6, border: `1px solid ${lang === l ? SR_COLORS.accent : '#232329'}`,
+                      background: lang === l ? SR_COLORS.accentDim : 'transparent', color: lang === l ? SR_COLORS.accentBright : '#666678',
+                      fontSize: 12, fontFamily: 'Figtree, sans-serif', cursor: 'pointer', transition: 'all 0.15s',
+                    }}>{l}</button>
+                  ))}
+                </div>
+              </div>
+              <Input label="OpenAI API Key" value="sk-••••••••••••••••••••••••" onChange={() => {}} type="password" hint="Used for email generation and scoring" />
+            </div>
+          )
+        }
+      ].map(({ title, content }) => (
+        <Card key={title} style={{ marginBottom: 16, padding: 24 }}>
+          <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 14, fontWeight: 700, color: '#d0d0e8', marginBottom: 18 }}>{title}</div>
+          {content}
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+// ─── app.jsx ─────────────────────────────────────────────────────────────────
+
+const NAV_ITEMS = [
+  { id: 'generate', label: 'Generate', iconKey: 'Zap' },
+  { id: 'campaigns', label: 'Campaigns', iconKey: 'Briefcase' },
+  { id: 'analytics', label: 'Analytics', iconKey: 'BarChart' },
+  { id: 'settings', label: 'Settings', iconKey: 'Settings' },
+];
+
+function Sidebar({ active, onNav, collapsed }) {
+  const [hovered, setHovered] = React.useState(null);
+
+  return (
+    <div style={{
+      width: collapsed ? 56 : 220, flexShrink: 0,
+      background: '#0c0c0f', borderRight: '1px solid #1a1a22',
+      display: 'flex', flexDirection: 'column',
+      height: '100vh', position: 'sticky', top: 0,
+      transition: 'width 0.2s ease', overflow: 'hidden',
+    }}>
+      <div style={{ padding: collapsed ? '20px 14px' : '20px 18px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid #1a1a22', flexShrink: 0 }}>
+        <div style={{ width: 28, height: 28, borderRadius: 7, background: SR_COLORS.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: `0 0 16px oklch(0.62 0.22 258 / 0.4)` }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </div>
+        {!collapsed && (
+          <div>
+            <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontWeight: 700, fontSize: 14, color: '#f0f0f8', letterSpacing: '-0.02em', lineHeight: 1.1 }}>SmartReach</div>
+            <div style={{ fontSize: 10, color: SR_COLORS.accentBright, fontFamily: 'Figtree, sans-serif', fontWeight: 500 }}>AI</div>
+          </div>
+        )}
+      </div>
+
+      <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {NAV_ITEMS.map(item => {
+          const isActive = active === item.id;
+          const isHov = hovered === item.id;
+          const IconComp = Icon[item.iconKey];
+          return (
+            <button key={item.id}
+              onClick={() => onNav(item.id)}
+              onMouseEnter={() => setHovered(item.id)}
+              onMouseLeave={() => setHovered(null)}
+              title={collapsed ? item.label : undefined}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: collapsed ? '9px 14px' : '9px 12px',
+                borderRadius: 8, border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left',
+                background: isActive ? SR_COLORS.accentDim : isHov ? '#141418' : 'transparent',
+                color: isActive ? SR_COLORS.accentBright : isHov ? '#c8c8e0' : '#6b6b82',
+                transition: 'all 0.15s', justifyContent: collapsed ? 'center' : 'flex-start',
+              }}>
+              <span style={{ display: 'flex', flexShrink: 0 }}><IconComp /></span>
+              {!collapsed && <span style={{ fontFamily: 'Figtree, sans-serif', fontSize: 13, fontWeight: isActive ? 600 : 500 }}>{item.label}</span>}
+              {isActive && !collapsed && <div style={{ width: 5, height: 5, borderRadius: '50%', background: SR_COLORS.accent, marginLeft: 'auto', flexShrink: 0 }} />}
+            </button>
+          );
+        })}
+      </nav>
+
+      <div style={{ padding: collapsed ? '14px 8px' : '14px 12px', borderTop: '1px solid #1a1a22', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <Avatar name="Alex Johnson" size={28} />
+        {!collapsed && (
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 12, fontWeight: 600, color: '#d0d0e8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Alex Johnson</div>
+            <div style={{ fontSize: 10, color: '#44445a', fontFamily: 'Figtree, sans-serif' }}>Free Plan</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AppShell({ tweaks }) {
+  const [screen, setScreen] = React.useState('generate');
+  const [results, setResults] = React.useState(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
+  const showResults = screen === 'generate' && results !== null;
+
+  const handleNav = (id) => {
+    setScreen(id);
+    if (id !== 'generate') setResults(null);
+  };
+
+  const renderScreen = () => {
+    if (screen === 'generate') {
+      if (showResults) return <ResultsScreen emails={results} onBack={() => setResults(null)} />;
+      return <GenerateScreen onResults={(r) => setResults(r)} />;
+    }
+    if (screen === 'campaigns') return <CampaignsScreen />;
+    if (screen === 'analytics') return <AnalyticsScreen />;
+    if (screen === 'settings') return <SettingsScreen />;
+    return null;
+  };
+
+  return (
+    <div style={{ display: 'flex', height: '100vh', background: '#09090b', fontFamily: 'Figtree, sans-serif', fontSize: tweaks && tweaks.density === 'compact' ? 13 : 14 }}>
+      <Sidebar active={screen} onNav={handleNav} collapsed={sidebarCollapsed} />
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{
+          height: 52, flexShrink: 0, borderBottom: '1px solid #1a1a22',
+          display: 'flex', alignItems: 'center', padding: '0 24px', gap: 12,
+          background: '#09090b',
+        }}>
+          <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} style={{
+            background: 'none', border: 'none', cursor: 'pointer', color: '#55556a',
+            display: 'flex', padding: 6, borderRadius: 6,
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+
+          <div style={{ flex: 1 }} />
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {showResults && (
+              <>
+                <span style={{ fontSize: 12, color: '#44445a', fontFamily: 'Figtree, sans-serif', cursor: 'pointer' }} onClick={() => setResults(null)}>Generate</span>
+                <span style={{ color: '#333344', fontSize: 12 }}>/</span>
+              </>
+            )}
+            <span style={{ fontSize: 12, color: '#888898', fontFamily: 'Figtree, sans-serif', fontWeight: 500, textTransform: 'capitalize' }}>
+              {showResults ? 'Results' : screen}
+            </span>
+          </div>
+
+          <div style={{ flex: 1 }} />
+
+          <Button variant="secondary" size="sm" onClick={() => { setScreen('generate'); setResults(null); }} icon={<Icon.Plus />}>New Email</Button>
+          <div style={{ width: 1, height: 20, background: '#1e1e26' }} />
+          <Avatar name="Alex Johnson" size={28} />
+        </div>
+
+        <div style={{ flex: 1, overflow: 'auto', padding: '0 32px' }}>
+          {renderScreen()}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Root ─────────────────────────────────────────────────────────────────────
+
+const TWEAK_DEFAULTS = {
+  "accentHue": 258,
+  "density": "normal",
+  "emailCount": 3,
+  "showScores": true
+};
+
+function Root() {
+  const [tweaks, setTweaks] = React.useState(TWEAK_DEFAULTS);
+  const [onboarded, setOnboarded] = React.useState(false);
+
+  React.useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--accent', `oklch(0.62 0.22 ${tweaks.accentHue})`);
+    SR_COLORS.accent = `oklch(0.62 0.22 ${tweaks.accentHue})`;
+    SR_COLORS.accentDim = `oklch(0.62 0.22 ${tweaks.accentHue} / 0.14)`;
+    SR_COLORS.accentBright = `oklch(0.72 0.22 ${tweaks.accentHue})`;
+  }, [tweaks.accentHue]);
+
+  if (!onboarded) {
+    return <OnboardingScreen onComplete={() => setOnboarded(true)} />;
+  }
+
+  return <AppShell tweaks={tweaks} />;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<Root />);
+  </script>
+</body>
+</html>

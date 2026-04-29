@@ -1,0 +1,90 @@
+import { useState, ReactNode } from 'react';
+
+interface InputProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  type?: string;
+  style?: React.CSSProperties;
+  icon?: ReactNode;
+  label?: string;
+  hint?: string;
+}
+
+export default function Input({
+  value,
+  onChange,
+  placeholder,
+  type = 'text',
+  style,
+  icon,
+  label,
+  hint,
+}: InputProps) {
+  const [focused, setFocused] = useState(false);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {label && (
+        <label
+          style={{
+            fontSize: 12,
+            fontWeight: 500,
+            color: '#888898',
+            fontFamily: 'Figtree, sans-serif',
+          }}
+        >
+          {label}
+        </label>
+      )}
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+        {icon && (
+          <span
+            style={{
+              position: 'absolute',
+              left: 12,
+              color: '#55556a',
+              display: 'flex',
+            }}
+          >
+            {icon}
+          </span>
+        )}
+        <input
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          style={{
+            width: '100%',
+            padding: icon ? '10px 14px 10px 38px' : '10px 14px',
+            background: '#111114',
+            border: `1px solid ${focused ? 'oklch(0.62 0.22 258)' : '#232329'}`,
+            borderRadius: 8,
+            color: '#e8e8f4',
+            fontSize: 13,
+            fontFamily: 'Figtree, sans-serif',
+            outline: 'none',
+            transition: 'border-color 0.15s',
+            boxSizing: 'border-box',
+            boxShadow: focused ? '0 0 0 3px oklch(0.62 0.22 258 / 0.12)' : 'none',
+            ...style,
+          }}
+        />
+      </div>
+      {hint && (
+        <span
+          style={{
+            fontSize: 11,
+            color: '#55556a',
+            fontFamily: 'Figtree, sans-serif',
+          }}
+        >
+          {hint}
+        </span>
+      )}
+    </div>
+  );
+}
