@@ -1,25 +1,97 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Input from '@/components/ui/Input';
 import Tag from '@/components/ui/Tag';
 import { Icon } from '@/components/Icons';
+import { useStore } from '@/lib/store';
+import { extractTextFromPDF } from '@/lib/pdfExtract';
 
 interface OnboardingProps {
   onComplete: () => void;
 }
 
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 export default function OnboardingScreen({ onComplete }: OnboardingProps) {
+  const { setProfile } = useStore();
   const [step, setStep] = useState(0);
   const [resumeFile, setResumeFile] = useState<{ name: string } | null>(null);
   const [portfolioLinks, setPortfolioLinks] = useState(['']);
-  const [skills, setSkills] = useState(['React', 'Node.js', 'Python']);
+  const [skills, setSkills] = useState<string[]>([]);
   const [newSkill, setNewSkill] = useState('');
-  const [name, setName] = useState('Alex Johnson');
-  const [role, setRole] = useState('Full Stack Engineer');
+  const [name, setName] = useState('');
+  const [role, setRole] = useState('');
+  const [email, setEmail] = useState('');
   const [dragOver, setDragOver] = useState(false);
+
+  // Skill extraction state
+  const [extracting, setExtracting] = useState(false);
+  const [extractError, setExtractError] = useState('');
+  const [extractedCount, setExtractedCount] = useState(0);
+
+  // Validation state – tracks whether user has attempted to proceed
+  const [attempted, setAttempted] = useState(false);
+  const [shakeKey, setShakeKey] = useState(0);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Per-step validation ──────────────────────────────────
+  const step0Errors = {
+    name: !name.trim(),
+    role: !role.trim(),
+    email: !email.trim() || !isValidEmail(email.trim()),
+  };
+  const step0Valid = !step0Errors.name && !step0Errors.role && !step0Errors.email;
+
+  const step1Valid = skills.length > 0;
+
+  // Step 2 (portfolio) is optional – always valid
+  const step2Valid = true;
+
+  const isCurrentStepValid = step === 0 ? step0Valid : step === 1 ? step1Valid : step2Valid;
+
+  // Error messages
+  const getEmailErrorMsg = () => {
+    if (!email.trim()) return 'Email is required';
+    if (!isValidEmail(email.trim())) return 'Enter a valid email address';
+    return '';
+  };
+
+  const finish = () => {
+    setProfile({
+      name: name.trim() || 'You',
+      email: email.trim(),
+      role: role.trim(),
+      skills,
+      portfolioLinks: portfolioLinks.filter((l) => l.trim()),
+      resume: resumeFile?.name,
+    });
+    onComplete();
+  };
+
+  const handleNext = () => {
+    if (!isCurrentStepValid) {
+      setAttempted(true);
+      setShakeKey((k) => k + 1);
+      return;
+    }
+    setAttempted(false);
+    if (step < 2) {
+      setStep(step + 1);
+    } else {
+      finish();
+    }
+  };
+
+  const handleBack = () => {
+    setAttempted(false);
+    setStep(step - 1);
+  };
 
   const steps = ['Profile', 'Resume & Skills', 'Portfolio'];
 
@@ -30,18 +102,99 @@ export default function OnboardingScreen({ onComplete }: OnboardingProps) {
     }
   };
 
+  // ── Extract skills from a PDF file ───────────────────────
+  const processResumeFile = async (file: File) => {
+    setResumeFile({ name: file.name });
+    setExtractError('');
+    setExtractedCount(0);
+
+    // Only extract from PDFs
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      return;
+    }
+
+    setExtracting(true);
+    try {
+      // 1) Extract text from PDF client-side
+      const text = await extractTextFromPDF(file);
+
+      if (!text.trim()) {
+        setExtractError('Could not read text from this PDF. Try a different file.');
+        setExtracting(false);
+        return;
+      }
+
+      // 2) Send text to API for skill extraction
+      const res = await fetch('/api/extract-skills', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Skill extraction API failed');
+      }
+
+      const data = await res.json();
+      const extracted: string[] = data.skills || [];
+
+      if (extracted.length > 0) {
+        // Merge with existing skills (no duplicates)
+        setSkills((prev) => {
+          const merged = new Set(prev);
+          for (const s of extracted) merged.add(s);
+          return Array.from(merged);
+        });
+        setExtractedCount(extracted.length);
+      } else {
+        setExtractError('No skills detected. Add them manually below.');
+      }
+    } catch (err: any) {
+      console.error('Resume extraction error:', err);
+      setExtractError('Failed to extract skills. You can add them manually.');
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processResumeFile(file);
+    }
+  };
+
   return (
     <div
       style={{
         minHeight: '100vh',
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'center',
-        padding: 40,
+        padding: '60px 40px',
         background: '#09090b',
+        overflowY: 'auto',
       }}
     >
+      {/* Shake animation style */}
+      <style>{`
+        @keyframes onb-shake {
+          0%, 100% { transform: translateX(0); }
+          20% { transform: translateX(-6px); }
+          40% { transform: translateX(6px); }
+          60% { transform: translateX(-4px); }
+          80% { transform: translateX(4px); }
+        }
+        .onb-shake { animation: onb-shake 0.35s ease; }
+        @keyframes onb-fadeSlide {
+          from { opacity: 0; transform: translateY(12px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .onb-step-enter { animation: onb-fadeSlide 0.3s ease forwards; }
+      `}</style>
+
       <div style={{ width: '100%', maxWidth: 540 }}>
+        {/* ── Logo ──────────────────────────────────────────── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 48 }}>
           <div
             style={{
@@ -71,10 +224,11 @@ export default function OnboardingScreen({ onComplete }: OnboardingProps) {
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 36 }}>
+        {/* ── Stepper ───────────────────────────────────────── */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 36 }}>
           {steps.map((s, i) => (
-            <div key={s}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+            <div key={s} style={{ display: 'flex', alignItems: 'center', flex: i < steps.length - 1 ? 1 : undefined }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 60 }}>
                 <div
                   style={{
                     width: 28,
@@ -122,9 +276,9 @@ export default function OnboardingScreen({ onComplete }: OnboardingProps) {
                     flex: 1,
                     height: 1,
                     background: i < step ? 'oklch(0.62 0.22 258)' : '#1e1e26',
-                    margin: '0 8px',
                     marginBottom: 20,
                     transition: 'background 0.3s',
+                    minWidth: 24,
                   }}
                 />
               )}
@@ -132,9 +286,11 @@ export default function OnboardingScreen({ onComplete }: OnboardingProps) {
           ))}
         </div>
 
+        {/* ── Card ──────────────────────────────────────────── */}
         <Card style={{ padding: 32 }}>
+          {/* ── Step 0: Profile ─────────────────────────────── */}
           {step === 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <div key={`step0-${shakeKey}`} className="onb-step-enter" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
               <div>
                 <div
                   style={{
@@ -158,24 +314,47 @@ export default function OnboardingScreen({ onComplete }: OnboardingProps) {
                   Let's set up your profile so we can personalize every email to your background.
                 </div>
               </div>
-              <Input label="Full Name" value={name} onChange={setName} placeholder="Your full name" />
-              <Input
-                label="Current Role / Target Role"
-                value={role}
-                onChange={setRole}
-                placeholder="e.g. Full Stack Engineer"
-              />
-              <Input
-                label="Email Address"
-                value="alex@example.com"
-                onChange={() => {}}
-                placeholder="you@company.com"
-              />
+              <div>
+                <Input label="Full Name" value={name} onChange={setName} placeholder="Your full name" />
+                {attempted && step0Errors.name && (
+                  <span style={{ fontSize: 11, color: 'oklch(0.65 0.22 25)', fontFamily: 'Figtree, sans-serif', marginTop: 4, display: 'block' }}>
+                    Name is required
+                  </span>
+                )}
+              </div>
+              <div>
+                <Input
+                  label="Current Role / Target Role"
+                  value={role}
+                  onChange={setRole}
+                  placeholder="e.g. Full Stack Engineer"
+                />
+                {attempted && step0Errors.role && (
+                  <span style={{ fontSize: 11, color: 'oklch(0.65 0.22 25)', fontFamily: 'Figtree, sans-serif', marginTop: 4, display: 'block' }}>
+                    Role is required
+                  </span>
+                )}
+              </div>
+              <div>
+                <Input
+                  label="Email Address"
+                  value={email}
+                  onChange={setEmail}
+                  placeholder="you@company.com"
+                  type="email"
+                />
+                {attempted && step0Errors.email && (
+                  <span style={{ fontSize: 11, color: 'oklch(0.65 0.22 25)', fontFamily: 'Figtree, sans-serif', marginTop: 4, display: 'block' }}>
+                    {getEmailErrorMsg()}
+                  </span>
+                )}
+              </div>
             </div>
           )}
 
+          {/* ── Step 1: Resume & Skills ────────────────────── */}
           {step === 1 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <div key={`step1-${shakeKey}`} className="onb-step-enter" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
               <div>
                 <div
                   style={{
@@ -199,6 +378,16 @@ export default function OnboardingScreen({ onComplete }: OnboardingProps) {
                   We'll extract your skills and experience to match against job listings.
                 </div>
               </div>
+
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.docx,.doc"
+                style={{ display: 'none' }}
+                onChange={handleFileChange}
+              />
+
               <div
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -208,9 +397,12 @@ export default function OnboardingScreen({ onComplete }: OnboardingProps) {
                 onDrop={(e) => {
                   e.preventDefault();
                   setDragOver(false);
-                  setResumeFile({ name: e.dataTransfer.files[0]?.name || 'resume.pdf' });
+                  const file = e.dataTransfer.files[0];
+                  if (file) {
+                    processResumeFile(file);
+                  }
                 }}
-                onClick={() => setResumeFile({ name: 'Alex_Johnson_Resume.pdf' })}
+                onClick={() => fileInputRef.current?.click()}
                 style={{
                   border: `2px dashed ${
                     dragOver
@@ -231,7 +423,20 @@ export default function OnboardingScreen({ onComplete }: OnboardingProps) {
                   transition: 'all 0.2s',
                 }}
               >
-                {resumeFile ? (
+                {extracting ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                    <div style={{
+                      width: 22, height: 22,
+                      border: '2.5px solid oklch(0.62 0.22 258 / 0.2)',
+                      borderTopColor: 'oklch(0.62 0.22 258)',
+                      borderRadius: '50%',
+                      animation: 'spin 0.7s linear infinite',
+                    }} />
+                    <span style={{ fontFamily: 'Figtree, sans-serif', fontSize: 13, color: 'oklch(0.72 0.22 258)' }}>
+                      Extracting skills from resume…
+                    </span>
+                  </div>
+                ) : resumeFile ? (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
                     <span style={{ color: 'oklch(0.68 0.18 155)', display: 'flex' }}>
                       <Icon.Check />
@@ -245,6 +450,26 @@ export default function OnboardingScreen({ onComplete }: OnboardingProps) {
                       }}
                     >
                       {resumeFile.name}
+                    </span>
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setResumeFile(null);
+                        setExtractedCount(0);
+                        setExtractError('');
+                        if (fileInputRef.current) fileInputRef.current.value = '';
+                      }}
+                      style={{
+                        color: '#888898',
+                        cursor: 'pointer',
+                        fontSize: 16,
+                        lineHeight: 1,
+                        marginLeft: 4,
+                        opacity: 0.7,
+                      }}
+                      title="Remove file"
+                    >
+                      ×
                     </span>
                   </div>
                 ) : (
@@ -262,6 +487,37 @@ export default function OnboardingScreen({ onComplete }: OnboardingProps) {
                   </>
                 )}
               </div>
+
+              {/* Extraction status */}
+              {extractedCount > 0 && (
+                <div style={{
+                  background: 'oklch(0.68 0.18 155 / 0.10)',
+                  borderRadius: 8,
+                  padding: '10px 14px',
+                  display: 'flex',
+                  gap: 8,
+                  alignItems: 'center',
+                }}>
+                  <span style={{ color: 'oklch(0.68 0.18 155)', display: 'flex' }}><Icon.Zap /></span>
+                  <span style={{ fontSize: 12, color: 'oklch(0.68 0.18 155)', fontFamily: 'Figtree, sans-serif', fontWeight: 500 }}>
+                    {extractedCount} skill{extractedCount !== 1 ? 's' : ''} extracted from your resume
+                  </span>
+                </div>
+              )}
+              {extractError && (
+                <div style={{
+                  background: 'oklch(0.65 0.22 25 / 0.10)',
+                  borderRadius: 8,
+                  padding: '10px 14px',
+                  display: 'flex',
+                  gap: 8,
+                  alignItems: 'center',
+                }}>
+                  <span style={{ fontSize: 12, color: 'oklch(0.65 0.22 25)', fontFamily: 'Figtree, sans-serif' }}>
+                    {extractError}
+                  </span>
+                </div>
+              )}
               <div>
                 <div
                   style={{
@@ -272,15 +528,17 @@ export default function OnboardingScreen({ onComplete }: OnboardingProps) {
                     marginBottom: 10,
                   }}
                 >
-                  Skills
+                  Skills <span style={{ color: '#44445a', fontWeight: 400 }}>({skills.length > 0 ? `${skills.length} added` : 'at least 1 required'})</span>
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
-                  {skills.map((s) => (
-                    <Tag key={s} onRemove={() => setSkills(skills.filter((x) => x !== s))}>
-                      {s}
-                    </Tag>
-                  ))}
-                </div>
+                {skills.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                    {skills.map((s) => (
+                      <Tag key={s} onRemove={() => setSkills(skills.filter((x) => x !== s))}>
+                        {s}
+                      </Tag>
+                    ))}
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: 8 }}>
                   <Input
                     value={newSkill}
@@ -292,12 +550,18 @@ export default function OnboardingScreen({ onComplete }: OnboardingProps) {
                     Add
                   </Button>
                 </div>
+                {attempted && !step1Valid && (
+                  <span style={{ fontSize: 11, color: 'oklch(0.65 0.22 25)', fontFamily: 'Figtree, sans-serif', marginTop: 6, display: 'block' }}>
+                    Add at least one skill to continue
+                  </span>
+                )}
               </div>
             </div>
           )}
 
+          {/* ── Step 2: Portfolio ───────────────────────────── */}
           {step === 2 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <div className="onb-step-enter" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
               <div>
                 <div
                   style={{
@@ -332,7 +596,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingProps) {
                   }}
                   placeholder="https://github.com/you/project"
                   icon={<Icon.Link />}
-                  label={i === 0 ? 'Portfolio Links' : undefined}
+                  label={i === 0 ? 'Portfolio Links (optional)' : undefined}
                 />
               ))}
               <Button
@@ -376,20 +640,27 @@ export default function OnboardingScreen({ onComplete }: OnboardingProps) {
             </div>
           )}
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 32 }}>
+          {/* ── Navigation Buttons ─────────────────────────── */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 32 }}>
             {step > 0 ? (
-              <Button variant="ghost" onClick={() => setStep(step - 1)}>
+              <Button variant="ghost" onClick={handleBack}>
                 Back
               </Button>
             ) : (
               <div />
             )}
-            <Button
-              onClick={() => (step < 2 ? setStep(step + 1) : onComplete())}
-              icon={step === 2 ? <Icon.Zap /> : undefined}
+            <div
+              key={`btn-${shakeKey}`}
+              className={attempted && !isCurrentStepValid ? 'onb-shake' : ''}
             >
-              {step === 2 ? 'Finish Setup' : 'Continue'}
-            </Button>
+              <Button
+                onClick={handleNext}
+                icon={step === 2 ? <Icon.Zap /> : undefined}
+                disabled={attempted && !isCurrentStepValid}
+              >
+                {step === 2 ? 'Finish Setup' : 'Continue'}
+              </Button>
+            </div>
           </div>
         </Card>
       </div>

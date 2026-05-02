@@ -9,6 +9,8 @@ interface InputProps {
   icon?: ReactNode;
   label?: string;
   hint?: string;
+  error?: boolean;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }
 
 export default function Input({
@@ -20,8 +22,22 @@ export default function Input({
   icon,
   label,
   hint,
+  error,
+  onKeyDown,
 }: InputProps) {
   const [focused, setFocused] = useState(false);
+
+  const borderColor = error
+    ? 'oklch(0.65 0.22 25)'
+    : focused
+    ? 'oklch(0.62 0.22 258)'
+    : '#232329';
+
+  const glowShadow = error
+    ? '0 0 0 3px oklch(0.65 0.22 25 / 0.12)'
+    : focused
+    ? '0 0 0 3px oklch(0.62 0.22 258 / 0.12)'
+    : 'none';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -57,19 +73,20 @@ export default function Input({
           placeholder={placeholder}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
+          onKeyDown={onKeyDown}
           style={{
             width: '100%',
             padding: icon ? '10px 14px 10px 38px' : '10px 14px',
             background: '#111114',
-            border: `1px solid ${focused ? 'oklch(0.62 0.22 258)' : '#232329'}`,
+            border: `1px solid ${borderColor}`,
             borderRadius: 8,
             color: '#e8e8f4',
             fontSize: 13,
             fontFamily: 'Figtree, sans-serif',
             outline: 'none',
-            transition: 'border-color 0.15s',
+            transition: 'border-color 0.15s, box-shadow 0.15s',
             boxSizing: 'border-box',
-            boxShadow: focused ? '0 0 0 3px oklch(0.62 0.22 258 / 0.12)' : 'none',
+            boxShadow: glowShadow,
             ...style,
           }}
         />

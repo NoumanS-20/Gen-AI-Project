@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Avatar from './ui/Avatar';
 import { Icon } from './Icons';
+import { useStore } from '@/lib/store';
 
 const NAV_ITEMS = [
   { id: 'generate', label: 'Generate', iconKey: 'Zap' as const },
@@ -18,6 +19,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ active, onNav, collapsed }: SidebarProps) {
+  const { profile } = useStore();
   const [hovered, setHovered] = useState<string | null>(null);
 
   return (
@@ -153,7 +155,7 @@ export default function Sidebar({ active, onNav, collapsed }: SidebarProps) {
           gap: 10,
         }}
       >
-        <Avatar name="Alex Johnson" size={28} />
+        <Avatar name={profile.name || 'You'} size={28} />
         {!collapsed && (
           <div style={{ flex: 1, minWidth: 0 }}>
             <div
@@ -167,7 +169,7 @@ export default function Sidebar({ active, onNav, collapsed }: SidebarProps) {
                 textOverflow: 'ellipsis',
               }}
             >
-              Alex Johnson
+              {profile.name || 'You'}
             </div>
             <div style={{ fontSize: 10, color: '#44445a', fontFamily: 'Figtree, sans-serif' }}>Free Plan</div>
           </div>

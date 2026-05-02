@@ -11,10 +11,13 @@ import Button from './ui/Button';
 import Avatar from './ui/Avatar';
 import { Icon } from './Icons';
 import { GeneratedEmail } from '@/lib/types';
+import { useStore } from '@/lib/store';
 
 export default function AppShell() {
+  const { profile } = useStore();
   const [screen, setScreen] = useState('generate');
   const [results, setResults] = useState<GeneratedEmail[] | null>(null);
+  const [resultsMeta, setResultsMeta] = useState<{ company: string; jobDescription: string }>({ company: '', jobDescription: '' });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const showResults = screen === 'generate' && results !== null;
 
@@ -25,8 +28,8 @@ export default function AppShell() {
 
   const renderScreen = () => {
     if (screen === 'generate') {
-      if (showResults) return <ResultsScreen emails={results!} onBack={() => setResults(null)} />;
-      return <GenerateScreen onResults={setResults} />;
+      if (showResults) return <ResultsScreen emails={results!} meta={resultsMeta} onBack={() => setResults(null)} />;
+      return <GenerateScreen onResults={(emails, meta) => { setResults(emails); setResultsMeta(meta); }} />;
     }
     if (screen === 'campaigns') return <CampaignsScreen />;
     if (screen === 'analytics') return <AnalyticsScreen />;
@@ -39,6 +42,7 @@ export default function AppShell() {
       style={{
         display: 'flex',
         height: '100vh',
+        overflow: 'hidden',
         background: '#09090b',
         fontFamily: 'Figtree, sans-serif',
       }}
@@ -123,7 +127,7 @@ export default function AppShell() {
             New Email
           </Button>
           <div style={{ width: 1, height: 20, background: '#1e1e26' }} />
-          <Avatar name="Alex Johnson" size={28} />
+          <Avatar name={profile.name || 'You'} size={28} />
         </div>
 
         <div style={{ flex: 1, overflow: 'auto', padding: '0 32px' }}>
